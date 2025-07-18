@@ -20,7 +20,7 @@ class Repuber(Node):
     def __init__(self):
         super().__init__('sensor_transformer')
         self.imu_sub = self.create_subscription(Imu, '/utlidar/imu', self.imu_callback, 50)
-        self.cloud_sub = self.create_subscription(PointCloud2, '/utlidar/cloud', self.cloud_callback, 50)
+        self.cloud_sub = self.create_subscription(PointCloud2, '/utlidar/cloud_base', self.cloud_callback, 50)
         
         self.imu_raw_pub = self.create_publisher(Imu, '/utlidar/transformed_raw_imu', 50)
         self.imu_pub = self.create_publisher(Imu, '/utlidar/transformed_imu', 50)
@@ -44,9 +44,11 @@ class Repuber(Node):
                 'ang_z2x_proj': 0.15,
                 'ang_z2y_proj': -0.28
             }
+        
         try:
-            home_path = os.path.expanduser('~')
-            calib_file_path = os.path.join(home_path, 'Desktop/imu_calib_data.yaml')
+            calib_file_path = './imu_calib_data.yaml'
+            print("Loading: ", calib_file_path)
+
             calib_file = open(calib_file_path, 'r')
             calib_data = yaml.load(calib_file, Loader=yaml.FullLoader)
             print("imu_calib.yaml loaded")
@@ -88,7 +90,7 @@ class Repuber(Node):
         self.body2imu_trans.transform.rotation.y = quat[1]
         self.body2imu_trans.transform.rotation.z = quat[2]
         self.body2imu_trans.transform.rotation.w = quat[3]
-        
+
         self.x_filter_min = -0.7
         self.x_filter_max = -0.1
         self.y_filter_min = -0.3
@@ -109,39 +111,42 @@ class Repuber(Node):
         return is_in_box
 
     def cloud_callback(self, data):
-        if not self.time_stamp_offset_set:
-            self.time_stamp_offset = self.get_clock().now().nanoseconds - Time.from_msg(data.header.stamp).nanoseconds
-            self.time_stamp_offset_set = True
+        # if not self.time_stamp_offset_set:
+        #     self.time_stamp_offset = self.get_clock().now().nanoseconds - Time.from_msg(data.header.stamp).nanoseconds
+        #     self.time_stamp_offset_set = True
                 
-        cloud_arr = pc2.read_points_list(data)
-        points = np.array(cloud_arr)
+        # cloud_arr = pc2.read_points_list(data)
+        # points = np.array(cloud_arr)
 
-        transform = self.body2cloud_trans.transform
-        mat = quat2mat(np.array([transform.rotation.w, transform.rotation.x, transform.rotation.y, transform.rotation.z]))
-        translation = np.array([transform.translation.x, transform.translation.y, transform.translation.z])
+        # transform = self.body2cloud_trans.transform
+        # mat = quat2mat(np.array([transform.rotation.w, transform.rotation.x, transform.rotation.y, transform.rotation.z]))
+        # translation = np.array([transform.translation.x, transform.translation.y, transform.translation.z])
         
-        transformed_points = points
-        transformed_points[:, 0:3] = points[:, 0:3] @ mat.T + translation
-        transformed_points[:, 2] -= self.cam_offset
-        i = 0
-        remove_list = []
-        transformed_points = transformed_points.tolist()
-        for i in range(len(transformed_points)):
-            transformed_points[i][4] = int(transformed_points[i][4])
-            if self.is_in_filter_box(transformed_points[i]):
-                remove_list.append(i)
+        # transformed_points = points
+        # transformed_points[:, 0:3] = points[:, 0:3] @ mat.T + translation
+        # transformed_points[:, 2] -= self.cam_offset
+        # i = 0
+        # remove_list = []
+        # transformed_points = transformed_points.tolist()
+        # for i in range(len(transformed_points)):
+        #     transformed_points[i][4] = int(transformed_points[i][4])
+        #     if self.is_in_filter_box(transformed_points[i]):
+        #         remove_list.append(i)
 
-        remove_list.sort(reverse=True)
+        # remove_list.sort(reverse=True)
 
-        for id_to_remove in remove_list:
-            del transformed_points[id_to_remove]
+        # for id_to_remove in remove_list:
+        #     del transformed_points[id_to_remove]
         
-        elevated_cloud = pc2.create_cloud(data.header, data.fields, transformed_points)
-        elevated_cloud.header.stamp = Time(nanoseconds=Time.from_msg(elevated_cloud.header.stamp).nanoseconds + self.time_stamp_offset).to_msg()
-        elevated_cloud.header.frame_id = "body"
-        elevated_cloud.is_dense = data.is_dense
+        # elevated_cloud = pc2.create_cloud(data.header, data.fields, transformed_points)
+        # elevated_cloud.header.stamp = Time(nanoseconds=Time.from_msg(elevated_cloud.header.stamp).nanoseconds + self.time_stamp_offset).to_msg()
+        # elevated_cloud.header.frame_id = "body"
+        # elevated_cloud.is_dense = data.is_dense
 
-        self.cloud_pub.publish(elevated_cloud)
+        # self.cloud_pub.publish(elevated_cloud)
+        data.header.frame_id = "body"
+        self.cloud_pub.publish(data)
+
             
     def transform_vector(self, vector, rotation):
         # Transform a vector using a given quaternion rotation

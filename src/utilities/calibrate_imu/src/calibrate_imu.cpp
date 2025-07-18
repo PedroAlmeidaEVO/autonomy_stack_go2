@@ -55,18 +55,21 @@ void imu_handler(const sensor_msgs::msg::Imu::ConstSharedPtr msg_in)
     msg_store.linear_acceleration.x = acc_x2;
     msg_store.linear_acceleration.y = acc_y2;
     msg_store.linear_acceleration.z = acc_z2;
-    
-    if (state == 1){
+
+    if (state == 1)
+    {
         imu_static.push_back(msg_store);
     }
-    else if (state == 2){
+    else if (state == 2)
+    {
         imu_rotation_positive_z.push_back(msg_store);
     }
 }
 
-void serialize_to_file(){
-    const char* homeDir = getenv("HOME");
-    std::string file_path = std::string(homeDir) + "/Desktop/imu_calib_data.yaml";
+void serialize_to_file()
+{
+    std::string file_path = "./imu_calib_data.yaml";
+    std::cout << "Saving :" << file_path << std::endl;
     std::ofstream file;
     file.open(file_path, std::ios::out);
     file << "acc_bias_x: " << acc_bias_x << std::endl;
@@ -80,7 +83,8 @@ void serialize_to_file(){
     file.close();
 }
 
-void estimate_bias(){
+void estimate_bias()
+{
     // Constant bias from static
     int static_count = 0;
     int positive_rot_count = 0;
@@ -93,12 +97,13 @@ void estimate_bias(){
     double ang_rot_x_mean_negative = 0;
     double ang_rot_y_mean_negative = 0;
     double ang_rot_z_mean_negative = 0;
-    
+
     std::cout << "static size:" << imu_static.size() << std::endl;
     std::cout << "pos size:" << imu_rotation_positive_z.size() << std::endl;
     // std::cout << "neg size:" << imu_rotation_negative_z.size() << std::endl;
 
-    for (auto imu_data: imu_static){
+    for (auto imu_data : imu_static)
+    {
         static_count += 1;
 
         acc_bias_x += imu_data.linear_acceleration.x;
@@ -115,7 +120,7 @@ void estimate_bias(){
     ang_bias_x /= imu_static.size();
     ang_bias_y /= imu_static.size();
     ang_bias_z /= imu_static.size();
-    
+
     acc_bias_z -= 9.81;
 
     std::cout << "acc_bias_x: " << acc_bias_x << std::endl;
@@ -125,7 +130,8 @@ void estimate_bias(){
     std::cout << "ang_bias_y: " << ang_bias_y << std::endl;
     std::cout << "ang_bias_z: " << ang_bias_z << std::endl;
 
-    for (auto imu_data: imu_rotation_positive_z){
+    for (auto imu_data : imu_rotation_positive_z)
+    {
         positive_rot_count += 1;
         ang_rot_x_mean_positive += imu_data.angular_velocity.x;
         ang_rot_y_mean_positive += imu_data.angular_velocity.y;
@@ -139,7 +145,7 @@ void estimate_bias(){
     double positive_comp_y = -ang_rot_y_mean_positive / ang_rot_z_mean_positive;
     std::cout << "positive_comp_x: " << positive_comp_x << std::endl;
     std::cout << "positive_comp_y: " << positive_comp_y << std::endl;
-    
+
     ang_z2x_proj = positive_comp_x;
     ang_z2y_proj = positive_comp_y;
 }
@@ -150,9 +156,9 @@ void estimate_bias(){
  * 2-15: purely static for calibrating bias (1), start collecting data from 3s
  * 15-35: z-axis: 80 deg/s (2)
  * 35-37: write file
- * exit 
-*/
-int main(int argc, char** argv)
+ * exit
+ */
+int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
     auto nh = rclcpp::Node::make_shared("calibrate_imu");
@@ -160,7 +166,7 @@ int main(int argc, char** argv)
     auto pubGo2Request = nh->create_publisher<unitree_api::msg::Request>("/api/sport/request", 10);
     auto pubSpeed = nh->create_publisher<geometry_msgs::msg::TwistStamped>("/cmd_vel", 5); // Debug purpose
 
-    auto subImu = nh->create_subscription<sensor_msgs::msg::Imu>("/utlidar/imu", 300,  imu_handler);
+    auto subImu = nh->create_subscription<sensor_msgs::msg::Imu>("/utlidar/imu", 300, imu_handler);
 
     geometry_msgs::msg::TwistStamped cmd_vel;
     cmd_vel.header.frame_id = "vehicle";
@@ -173,16 +179,18 @@ int main(int argc, char** argv)
     SportClient sport_req;
 
     bool file_written = false;
-    
+
     double ang_vel = 1.396;
 
-    while (status){
-    	rclcpp::spin_some(nh);
-    	
+    while (status)
+    {
+        rclcpp::spin_some(nh);
+
         auto current = std::chrono::system_clock::now();
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(current - beginning).count();
 
-        if (seconds < 2){
+        if (seconds < 2)
+        {
             cmd_vel.twist.linear.x = 0;
             cmd_vel.twist.linear.y = 0;
             cmd_vel.twist.angular.z = 0;
@@ -190,10 +198,11 @@ int main(int argc, char** argv)
 
             sport_req.Move(req, 0, 0, 0);
             pubGo2Request->publish(req);
-            
+
             state = 0;
         }
-        else if (seconds >= 2 && seconds <15){
+        else if (seconds >= 2 && seconds < 15)
+        {
             cmd_vel.twist.linear.x = 0;
             cmd_vel.twist.linear.y = 0;
             cmd_vel.twist.angular.z = 0;
@@ -202,11 +211,13 @@ int main(int argc, char** argv)
             sport_req.StopMove(req);
             pubGo2Request->publish(req);
 
-            if (seconds >= 5){
+            if (seconds >= 5)
+            {
                 state = 1;
             }
         }
-        else if (seconds >= 15 && seconds < 35){
+        else if (seconds >= 15 && seconds < 35)
+        {
             cmd_vel.twist.linear.x = 0;
             cmd_vel.twist.linear.y = 0;
             cmd_vel.twist.angular.z = ang_vel;
@@ -217,7 +228,8 @@ int main(int argc, char** argv)
 
             state = 2;
         }
-        else if (seconds >= 35 && seconds < 37){
+        else if (seconds >= 35 && seconds < 37)
+        {
             cmd_vel.twist.linear.x = 0;
             cmd_vel.twist.linear.y = 0;
             cmd_vel.twist.angular.z = 0;
@@ -229,19 +241,24 @@ int main(int argc, char** argv)
             state = 3;
         }
 
-        if (state == 0){
+        if (state == 0)
+        {
             std::cout << "Adjusting the robot to the initial position..." << std::endl;
         }
-        else if (state == 1){
+        else if (state == 1)
+        {
             std::cout << "Collecting static data..." << std::endl;
         }
-        else if (state == 2){
+        else if (state == 2)
+        {
             std::cout << "Collecting positive z-axis rotation data..." << std::endl;
         }
-        else if (state == 3){
+        else if (state == 3)
+        {
             std::cout << "Writing to file..." << std::endl;
         }
-        if (state == 3 && !file_written){
+        if (state == 3 && !file_written)
+        {
             estimate_bias();
             serialize_to_file();
             file_written = true;

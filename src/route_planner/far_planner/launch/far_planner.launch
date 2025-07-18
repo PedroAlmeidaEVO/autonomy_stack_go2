@@ -10,7 +10,7 @@ import launch_ros
 
 def generate_launch_description():
     return LaunchDescription([
-        SetParameter(name='use_sim_time', value='false'),
+        SetParameter(name='use_sim_time', value=False),
         DeclareLaunchArgument('config', default_value='default'),
 
         Node(
@@ -34,20 +34,20 @@ def generate_launch_description():
             ]
         ),
         
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='far_rviz',
-            arguments=['-d', 
-                PythonExpression([
-                '"', 
-                get_package_share_directory('far_planner'), 
-                '/rviz/', 
-                LaunchConfiguration('config'), 
-                '.rviz"'])
-            ],
-            respawn=False,
-        ),
+        # Node(
+        #     package='rviz2',
+        #     executable='rviz2',
+        #     name='far_rviz',
+        #     arguments=['-d', 
+        #         PythonExpression([
+        #         '"', 
+        #         get_package_share_directory('far_planner'), 
+        #         '/rviz/', 
+        #         LaunchConfiguration('config'), 
+        #         '.rviz"'])
+        #     ],
+        #     respawn=False,
+        # ),
 
         # Including another launch file
         IncludeLaunchDescription(

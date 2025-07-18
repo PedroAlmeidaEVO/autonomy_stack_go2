@@ -84,10 +84,12 @@
     <param name="noRotAtStop" value="false" />
     <param name="noRotAtGoal" value="true" />
     <param name="autonomyMode" value="$(var autonomyMode)" />
+
+    
     <param name="autonomySpeed" value="$(var autonomySpeed)" />
     <param name="joyToSpeedDelay" value="$(var joyToSpeedDelay)" />
     <param name="goalCloseDis" value="$(var goalCloseDis)"/>
-    <param name="is_real_robot" value="$(var is_real_robot)"/>
+    <param name="is_real_robot" value="false"/>
   </node>
 
   <node pkg="tf2_ros" exec="static_transform_publisher" name="vehicleTransPublisher" args="-$(var sensorOffsetX) -$(var sensorOffsetY) 0 0 0 0 /sensor /vehicle"/>
